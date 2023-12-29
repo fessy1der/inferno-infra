@@ -1,0 +1,53 @@
+## ---------------------------------------------------------------------------------------------------------------------
+## TERRAGRUNT CONFIGURATION
+## Terragrunt is a thin wrapper for Terraform that provides extra tools for working with multiple Terraform modules,
+## remote state, and locking: https://github.com/gruntwork-io/terragrunt
+## ---------------------------------------------------------------------------------------------------------------------
+#
+locals {
+#  # Automatically load account-level variables
+#  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
+#
+#  # Automatically load region-level variables
+#  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+#
+#  # Automatically load environment-level variables
+##  environment_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+#
+#  # Extract the variables we need for easy access
+  account_name = "default"
+  account_id   = ""
+  aws_region   = "eu-central-1"
+  environment  = "dev"
+}
+
+
+# Configure Terragrunt to automatically store tfstate files in an S3 bucket
+remote_state {
+  backend = "s3"
+  config = {
+    encrypt        = true
+    bucket         = "inferno-terragrunt-terraform-state-${local.environment}-${local.aws_region}"
+    key            = "${path_relative_to_include()}/terraform.tfstate"
+    region         = local.aws_region
+    dynamodb_table = "terraform-locks"
+    s3_bucket_tags = {
+      APP = "Terragrunt",
+    }
+  }
+  generate = {
+    path      = "backend.tf"
+    if_exists = "overwrite_terragrunt"
+  }
+}
+
+generate "provider"{
+  path = "provider.tf"
+  if_exists = "overwrite_terragrunt"
+
+  contents = <<EOF
+    provider "aws" {
+      region = "eu-central-1"
+    }
+  EOF
+}
